@@ -9,7 +9,7 @@ __pycache__/
 # *.txt
 
 # data files
-*.mat
+#*.mat
 
 # Windows executables
 #*.bat
