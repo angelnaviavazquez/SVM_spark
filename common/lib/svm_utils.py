@@ -15,6 +15,9 @@ from time import time
 '''
 Created on 13/06/2016
 @author: angel.navia@uc3m.es
+
+import code
+code.interact(local=locals())
 '''
 
 
@@ -23,45 +26,47 @@ def build_X1(x):
     k = np.vstack((np.array(1).reshape((1, 1)), x.features.reshape((NI, 1))))
     return LabeledPoint(x.label, k.T)
 
-def load_data(kdataset):
+
+def load_data(kdataset, kfold):
     if kdataset == 1:
         mat = scipy.io.loadmat('./data/ripley_5fold.mat')
         name_dataset = 'Ripley'
-        sigma= 1.414214
-        sigma = 1.030962
-        C = 100.0
-        NC = 10
 
     if kdataset == 2:
         mat = scipy.io.loadmat('./data/kwok_5fold.mat')
         name_dataset = 'Kwok'
-        sigma = 1.414214
-        sigma = 0.485075
-        C = 500.0
-        NC = 25
 
     if kdataset == 3:
         mat = scipy.io.loadmat('./data/twonorm_5fold.mat')
         name_dataset = 'Twonorm'
-        sigma = 7.727851
-        sigma = 0.559017
-        C = 1.0
-        NC = 75
 
     if kdataset == 4:
         mat = scipy.io.loadmat('./data/waveform_5fold.mat')
         name_dataset = 'Waveform'
-        sigma = 3.340698
-        C = 100.0
-        NC = 75
-              
+
     index_tr = mat['index_tr']
     index_val = mat['index_val']
-    x_tr =  mat['x_tr']
+    x_tr = mat['x_tr']
     x_tst = mat['x_tst']
-    y_tr =  mat['y_tr']
-    y_tst =  mat['y_tst']
-    return x_tr, y_tr, x_tst, y_tst, sigma, C, NC, name_dataset
+    y_tr = mat['y_tr']
+    y_tst = mat['y_tst']
+
+    #import code
+    #code.interact(local=locals())
+    ind_tr = np.where(index_tr[:, kfold - 1] == 1)
+    ind_val = np.where(index_val[:, kfold - 1] == 1)
+
+    x_tr_ = x_tr[ind_tr]
+    y_tr_ = y_tr[ind_tr]
+
+    x_val_ = x_tr[ind_val]
+    y_val_ = y_tr[ind_val]
+
+    x_tst_ = x_tst
+    y_tst_ = y_tst
+
+    return x_tr_, y_tr_, x_val_, y_val_, x_tst_, y_tst_, name_dataset
+
 
 def get_inc_w(x, w, landa):
     k = x.features
@@ -184,6 +189,15 @@ def build_k(x, c, sigma):
     x = LabeledPoint(x.label, k.T)
     return x
 
+def build_kc(x, c, sigma):
+    #NI = len(x.features)
+    #k = np.vstack((np.array(1).reshape((1,1)),x.features.reshape((NI, 1))))
+    #import code
+    #code.interact(local=locals())
+
+    k = np.vstack((np.array(1).reshape((1,1)),kernelG(x,c,sigma)))
+    x = LabeledPoint(x.label, k.T)
+    return x
 
 def train_nonlinearSVM(KtrRDD, C, landa, Niter, Samplefraction):
 
@@ -228,13 +242,15 @@ def plot_ROC(Ytr, Ytst):
     '''
     return auc_tst
 
-def train_hybridSVM(XtrRDD, XtstRDD, sigma, C, NC, name_dataset, Niter, Samplefraction):
+                  
+def train_kernelgrad(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, name_dataset, Niter, Samplefraction):
     
     time_ini = time()
     eta = C
-    landa = 1.0/C
+    landa = 1.0 / C
     NPtr = XtrRDD.count()
-    NPtst = XtstRDD.count()
+    #NPval = XvalRDD.count()
+    #NPtst = XtstRDD.count()
     NI = len(XtrRDD.take(1)[0].features)
     XtrRDD.cache()
     XtstRDD.cache()
@@ -242,21 +258,94 @@ def train_hybridSVM(XtrRDD, XtstRDD, sigma, C, NC, name_dataset, Niter, Samplefr
     
     #print NPtr, NPtst, NI
 
-    print "Training the linear SVM model with %d iterations" % Niter
+    #print "Training the linear SVM model during %d iterations" % Niter
 
     Xtr1RDD = XtrRDD.map(lambda x: build_X1(x)).cache()
-    Xtst1RDD = XtstRDD.map(lambda x: build_X1(x)).cache()
+    #Xtst1RDD = XtstRDD.map(lambda x: build_X1(x)).cache()
+    #w = train_linearSVM(Xtr1RDD, NI, C, eta, landa, Niter, Samplefraction)
+    #print "Done!"
 
+    #xtr = np.array(XtrRDD.map(lambda x: x.features).collect())
+    #ytr = np.array(XtrRDD.map(lambda x: x.label).collect())
+
+    print "Clustering data..."
+    #SV_RDD = Xtr1RDD.filter(lambda x: in_margin(x, w))
+    clusters = KMeans.train(Xtr1RDD.map(lambda x: x.features[1:len(x.features)]), NC, maxIterations=20, runs=20, initializationMode="random")
+    c = np.array(clusters.centers)
+
+    '''
+    if kdataset == 1 or kdataset == 2:   # el resto no se pueden pintar
+        #SVM.plot_linear_SVM(xtr, ytr, w, c)
+        plot_linear_SVM(xtr, ytr, w, c, name_dataset)
+    '''
+    
+    print "Building the kernel expansion..."    
+    KtrRDD = XtrRDD.map(lambda x: build_kc(x, c, sigma)).cache()
+    KvalRDD = XvalRDD.map(lambda x: build_kc(x, c, sigma)).cache()
+    KtstRDD = XtstRDD.map(lambda x: build_kc(x, c, sigma)).cache()
+
+    print "Training the hybrid SVM model during %d iterations" % Niter
+
+    w = train_nonlinearSVM(KtrRDD, C, landa, Niter, Samplefraction)
+
+    '''
+    xtr = np.array(XtrRDD.map(lambda x: x.features).collect())
+    ytr = np.array(XtrRDD.map(lambda x: x.label).collect())
+    if kdataset == 1 or kdataset == 2:   # el resto no se pueden pintar 
+        plot_hybrid_SVM(xtr, ytr, w, c, name_dataset)
+    '''
+    print "Predicting and evaluating..."
+
+    #y_pred_trRDD = KtrRDD.map(lambda x: (x.label, predict(x, w)[0][0]))
+    y_pred_valRDD = KvalRDD.map(lambda x: (x.label, predict(x, w)[0][0]))
+    y_pred_tstRDD = KtstRDD.map(lambda x: (x.label, predict(x, w)[0][0]))
+
+    #Ytr = y_pred_trRDD.collect()
+    Yval = y_pred_valRDD.collect()
+    Ytst = y_pred_tstRDD.collect()
+
+    #auc_tst = plot_ROC(Ytr, Ytst)
+    elapsed_time = time() - time_ini
+
+    fpr_val, tpr_val, th_val = roc_curve(np.array(Yval)[:,0], np.array(Yval)[:,1])
+    auc_val = auc(fpr_val, tpr_val)
+
+    fpr_tst, tpr_tst, th_tst = roc_curve(np.array(Ytst)[:,0], np.array(Ytst)[:,1])
+    auc_tst = auc(fpr_tst, tpr_tst)
+
+    print "AUCval = %f, AUCtst = %f" % (auc_val, auc_tst)
+    print "Elapsed_time = %f" % elapsed_time
+    return auc_val, auc_tst, elapsed_time
+
+
+def train_hybridSVM(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, name_dataset, Niter, Samplefraction):
+    
+    time_ini = time()
+    eta = C
+    landa = 1.0 / C
+    NPtr = XtrRDD.count()
+    #NPval = XvalRDD.count()
+    #NPtst = XtstRDD.count()
+    NI = len(XtrRDD.take(1)[0].features)
+    XtrRDD.cache()
+    XtstRDD.cache()
+    T = NPtr
+    
+    #print NPtr, NPtst, NI
+
+    print "Training the linear SVM model during %d iterations" % Niter
+
+    Xtr1RDD = XtrRDD.map(lambda x: build_X1(x)).cache()
+    #Xtst1RDD = XtstRDD.map(lambda x: build_X1(x)).cache()
     w = train_linearSVM(Xtr1RDD, NI, C, eta, landa, Niter, Samplefraction)
-
     print "Done!"
 
     xtr = np.array(XtrRDD.map(lambda x: x.features).collect())
     ytr = np.array(XtrRDD.map(lambda x: x.label).collect())
 
-    print "Clustering SVs"
+    print "Clustering SVs..."
     SV_RDD = Xtr1RDD.filter(lambda x: in_margin(x, w))
-    clusters = KMeans.train(SV_RDD.map(lambda x: x.features[1:len(x.features)]), NC, maxIterations=10,runs=10, initializationMode="random")
+    clusters = KMeans.train(SV_RDD.map(lambda x: x.features[1:len(x.features)]), NC, maxIterations=20, runs=20, initializationMode="random")
     c = np.array(clusters.centers)
 
     '''
@@ -267,27 +356,39 @@ def train_hybridSVM(XtrRDD, XtstRDD, sigma, C, NC, name_dataset, Niter, Samplefr
     
     print "Building the kernel expansion..."    
     KtrRDD = XtrRDD.map(lambda x: build_k(x, c, sigma)).cache()
+    KvalRDD = XvalRDD.map(lambda x: build_k(x, c, sigma)).cache()
     KtstRDD = XtstRDD.map(lambda x: build_k(x, c, sigma)).cache()
 
-    print "Training the hybrid SVM model with %d iterations" % Niter
+    print "Training the hybrid SVM model during %d iterations" % Niter
 
     w = train_nonlinearSVM(KtrRDD, C, landa, Niter, Samplefraction)
 
+    '''
     xtr = np.array(XtrRDD.map(lambda x: x.features).collect())
     ytr = np.array(XtrRDD.map(lambda x: x.label).collect())
-    '''
     if kdataset == 1 or kdataset == 2:   # el resto no se pueden pintar 
         plot_hybrid_SVM(xtr, ytr, w, c, name_dataset)
     '''
-    print "Predicting and evaluating"
-    y_pred_trRDD = KtrRDD.map(lambda x: (x.label, predict(x, w)[0][0]))
+    print "Predicting and evaluating..."
+
+    #y_pred_trRDD = KtrRDD.map(lambda x: (x.label, predict(x, w)[0][0]))
+    y_pred_valRDD = KvalRDD.map(lambda x: (x.label, predict(x, w)[0][0]))
     y_pred_tstRDD = KtstRDD.map(lambda x: (x.label, predict(x, w)[0][0]))
 
-    Ytr = y_pred_trRDD.collect()
+    #Ytr = y_pred_trRDD.collect()
+    Yval = y_pred_valRDD.collect()
     Ytst = y_pred_tstRDD.collect()
 
-    auc_tst = plot_ROC(Ytr, Ytst)
+    #auc_tst = plot_ROC(Ytr, Ytst)
     elapsed_time = time() - time_ini
-    print "AUC = %f" % auc_tst
+
+    fpr_val, tpr_val, th_val = roc_curve(np.array(Yval)[:,0], np.array(Yval)[:,1])
+    auc_val = auc(fpr_val, tpr_val)
+
+    fpr_tst, tpr_tst, th_tst = roc_curve(np.array(Ytst)[:,0], np.array(Ytst)[:,1])
+    auc_tst = auc(fpr_tst, tpr_tst)
+
+    print "AUCval = %f, AUCtst = %f" % (auc_val, auc_tst)
     print "Elapsed_time = %f" % elapsed_time
-    return auc_tst, elapsed_time
+    return auc_val, auc_tst, elapsed_time
+    

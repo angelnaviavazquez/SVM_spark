@@ -13,6 +13,7 @@ __pycache__/
 
 # Windows executables
 #*.bat
+jupyter-spark_usuarios
 
 # Distribution / packaging
 .Python
