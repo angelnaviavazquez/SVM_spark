@@ -18,12 +18,10 @@ Created on 13/06/2016
 '''
 
 
-############## Mover a svm_utils
 def build_X1(x):
     NI = len(x.features)
     k = np.vstack((np.array(1).reshape((1, 1)), x.features.reshape((NI, 1))))
     return LabeledPoint(x.label, k.T)
-
 
 def load_data(kdataset):
     if kdataset == 1:
@@ -64,7 +62,6 @@ def load_data(kdataset):
     y_tr =  mat['y_tr']
     y_tst =  mat['y_tst']
     return x_tr, y_tr, x_tst, y_tst, sigma, C, NC, name_dataset
-
 
 def get_inc_w(x, w, landa):
     k = x.features
@@ -131,7 +128,6 @@ def plot_linear_SVM(xtr, ytr, w, c, name_dataset):
     plt.plot(c[:, 0], c[:, 1], 'ro')
     plt.show()
 
-
 def plot_hybrid_SVM(xtr, ytr, w, c, name_dataset):
     index1labels = np.where(ytr > 0)
     index0labels = np.where(ytr <= 0)
@@ -181,7 +177,6 @@ def kernelG(x,c,sigma):
     k = k.reshape((NC, 1))
     return k
 
-
 def build_k(x, c, sigma):
     NI = len(x.features)
     k = np.vstack((np.array(1).reshape((1,1)),x.features.reshape((NI, 1))))
@@ -215,23 +210,23 @@ def predict(x, w):
     y_pred = np.dot(k, w)
     return y_pred
 
-
 def plot_ROC(Ytr, Ytst):
     fpr_tr, tpr_tr, th_tr = roc_curve(np.array(Ytr)[:,0], np.array(Ytr)[:,1])
     auc_tr = auc(fpr_tr, tpr_tr)
-    plt.plot(fpr_tr, tpr_tr,'r')
+    #plt.plot(fpr_tr, tpr_tr,'r')
 
     fpr_tst, tpr_tst, th_tst = roc_curve(np.array(Ytst)[:,0], np.array(Ytst)[:,1])
     auc_tst = auc(fpr_tst, tpr_tst)
-    plt.plot(fpr_tst, tpr_tst,'g')
+    #plt.plot(fpr_tst, tpr_tst,'g')
 
+    '''
     plt.xlabel('fpr')
     plt.ylabel('tpr')
     plt.title(name_dataset)
     plt.grid(True)
     plt.show()
+    '''
     return auc_tst
-
 
 def train_hybridSVM(XtrRDD, XtstRDD, sigma, C, NC, name_dataset, Niter, Samplefraction):
     
@@ -244,6 +239,8 @@ def train_hybridSVM(XtrRDD, XtstRDD, sigma, C, NC, name_dataset, Niter, Samplefr
     XtrRDD.cache()
     XtstRDD.cache()
     T = NPtr
+    
+    #print NPtr, NPtst, NI
 
     print "Training the linear SVM model with %d iterations" % Niter
 
@@ -262,10 +259,12 @@ def train_hybridSVM(XtrRDD, XtstRDD, sigma, C, NC, name_dataset, Niter, Samplefr
     clusters = KMeans.train(SV_RDD.map(lambda x: x.features[1:len(x.features)]), NC, maxIterations=10,runs=10, initializationMode="random")
     c = np.array(clusters.centers)
 
+    '''
     if kdataset == 1 or kdataset == 2:   # el resto no se pueden pintar
         #SVM.plot_linear_SVM(xtr, ytr, w, c)
         plot_linear_SVM(xtr, ytr, w, c, name_dataset)
-
+    '''
+    
     print "Building the kernel expansion..."    
     KtrRDD = XtrRDD.map(lambda x: build_k(x, c, sigma)).cache()
     KtstRDD = XtstRDD.map(lambda x: build_k(x, c, sigma)).cache()
@@ -276,9 +275,10 @@ def train_hybridSVM(XtrRDD, XtstRDD, sigma, C, NC, name_dataset, Niter, Samplefr
 
     xtr = np.array(XtrRDD.map(lambda x: x.features).collect())
     ytr = np.array(XtrRDD.map(lambda x: x.label).collect())
+    '''
     if kdataset == 1 or kdataset == 2:   # el resto no se pueden pintar 
         plot_hybrid_SVM(xtr, ytr, w, c, name_dataset)
-
+    '''
     print "Predicting and evaluating"
     y_pred_trRDD = KtrRDD.map(lambda x: (x.label, predict(x, w)[0][0]))
     y_pred_tstRDD = KtstRDD.map(lambda x: (x.label, predict(x, w)[0][0]))
