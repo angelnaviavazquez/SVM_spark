@@ -28,9 +28,13 @@ def IRWLS(originaldataset,Bases,C,gamma,Niter=100):
         
         # IRWLS Procedure
         (K1,K2) = dataset.map(lambda x: _getK1andK2(x,Beta,C,i,1.0)).reduce(lambda a,b:(a[0]+b[0],a[1]+b[1]))
-        K1[0:nBases,0:nBases]=K1[0:nBases,0:nBases]+KC                
-        K1Chol = cho_factor(K1)
-        newBeta = cho_solve(K1Chol,K2)
+        K1[0:nBases,0:nBases]=K1[0:nBases,0:nBases]+KC   
+
+        try:               
+            K1Chol = cho_factor(K1)
+            newBeta = cho_solve(K1Chol,K2)
+        except Exception as inst:
+            return  bestBeta
 
         # Convergence criteria
         condition = np.linalg.norm(Beta-newBeta)/np.linalg.norm(Beta)                
