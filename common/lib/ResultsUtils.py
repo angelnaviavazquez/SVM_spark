@@ -36,7 +36,11 @@ def show_results(dataset,Bases,Pesos,gamma):
     print "Accuracy",np.sum(Success>0)/np.float(len(Success))
 
 
-def compute_AUCs(dataset_val, dataset_tst, Bases,Pesos,gamma):
+def compute_AUCs(dataset_tr, dataset_val, dataset_tst, Bases,Pesos,gamma):
+
+    LabelAndPredictions=np.array(dataset_tr.map(lambda x:_labelAndPrediction(x,Bases,Pesos,gamma)).collect())
+    fpr_tr, tpr_tr, th_tr = roc_curve(LabelAndPredictions[:,0], LabelAndPredictions[:,1])
+    auc_tr = auc(fpr_tr, tpr_tr)
 
     LabelAndPredictions=np.array(dataset_val.map(lambda x:_labelAndPrediction(x,Bases,Pesos,gamma)).collect())
     fpr_val, tpr_val, th_val = roc_curve(LabelAndPredictions[:,0], LabelAndPredictions[:,1])
@@ -46,4 +50,4 @@ def compute_AUCs(dataset_val, dataset_tst, Bases,Pesos,gamma):
     fpr_tst, tpr_tst, th_tst = roc_curve(LabelAndPredictions[:,0], LabelAndPredictions[:,1])
     auc_tst = auc(fpr_tst, tpr_tst)
 
-    return auc_val, auc_tst
+    return auc_tr, auc_val, auc_tst

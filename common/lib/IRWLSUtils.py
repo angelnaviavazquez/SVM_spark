@@ -121,7 +121,7 @@ def loadFile(filename,sc,dimensions, Npartitions):
     return sc.parallelize(np.concatenate((Y.reshape((len(Y),1)),X),axis=1)).map(lambda x: LabeledPoint(x[0],x[1:]),Npartitions)
 
 
-def train_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, name_dataset, Niter, Samplefraction):
+def train_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter, Samplefraction):
 
     time_ini = time.time()
     gamma = 1.0/(sigma*sigma)
@@ -132,10 +132,10 @@ def train_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, name_dataset, Niter
     
     Pesos = IRWLS(XtrRDD,Bases,C,gamma)
 
-    auc_val, auc_tst = compute_AUCs(XvalRDD, XtstRDD, Bases,Pesos,gamma)
+    auc_tr, auc_val, auc_tst = compute_AUCs(XtrRDD, XvalRDD, XtstRDD, Bases,Pesos,gamma)
 
     exe_time = time.time() - time_ini
-    print "AUCval = %f, AUCtst = %f" % (auc_val, auc_tst)
-    print "Elapsed_time = %f" % exe_time
- 
-    return auc_val, auc_tst, exe_time
+    
+    print "AUCtr = %f, AUCval = %f, AUCtst = %f" % (auc_tr, auc_val, auc_tst)
+    print "Elapsed_time = %f" % elapsed_time
+    return auc_tr, auc_val, auc_tst, elapsed_time
