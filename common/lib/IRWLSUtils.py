@@ -8,6 +8,7 @@ from sklearn.datasets import load_svmlight_file
 from pyspark.mllib.regression import LabeledPoint   
 from SGMAUtils import SGMA
 from ResultsUtils import compute_AUCs
+import numpy as np
 # IRWLS Procedure
 
 def IRWLS(originaldataset,Bases,C,gamma,Niter=100):
@@ -114,10 +115,10 @@ def _getK1andK2(trainingSet,Beta,C,iteration,samplingRate):
 
     return resultado
 
-def loadFile(filename,sc,dimensions):
+def loadFile(filename,sc,dimensions, Npartitions):
     X,Y = load_svmlight_file(filename,dimensions)
     X=X.toarray()
-    return sc.parallelize(np.concatenate((Y.reshape((len(Y),1)),X),axis=1)).map(lambda x: LabeledPoint(x[0],x[1:]),12)
+    return sc.parallelize(np.concatenate((Y.reshape((len(Y),1)),X),axis=1)).map(lambda x: LabeledPoint(x[0],x[1:]),Npartitions)
 
 
 def train_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, name_dataset, Niter, Samplefraction):

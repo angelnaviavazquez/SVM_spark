@@ -207,7 +207,9 @@ def train_nonlinearSVM(KtrRDD, C, landa, Niter, Samplefraction):
         Nsample = incwRDD.count()
         N_added += Nsample 
         eta = C/N_added
-        w += eta * incwRDD.reduce(lambda x, y: x + y)
+        deltaw = eta * incwRDD.reduce(lambda x, y: x + y)
+        w += deltaw
+        #print np.linalg.norm(deltaw)
     print "Fin!"
     return w
 
@@ -245,8 +247,8 @@ def train_kernelgrad(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, name_dataset, Niter
     #NPval = XvalRDD.count()
     #NPtst = XtstRDD.count()
     NI = len(XtrRDD.take(1)[0].features)
-    XtrRDD.cache()
-    XtstRDD.cache()
+    #XtrRDD.cache()
+    #XtstRDD.cache()
     T = NPtr
     
     #print NPtr, NPtst, NI
@@ -320,8 +322,8 @@ def train_hybridSVM(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, name_dataset, Niter,
     #NPval = XvalRDD.count()
     #NPtst = XtstRDD.count()
     NI = len(XtrRDD.take(1)[0].features)
-    XtrRDD.cache()
-    XtstRDD.cache()
+    #XtrRDD.cache()
+    #XtstRDD.cache()
     T = NPtr
     
     #print NPtr, NPtst, NI
