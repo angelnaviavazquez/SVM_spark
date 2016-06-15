@@ -34,3 +34,16 @@ def show_results(dataset,Bases,Pesos,gamma):
     Success=LabelAndPredictions[:,0]*np.sign(LabelAndPredictions[:,1])
 
     print "Accuracy",np.sum(Success>0)/np.float(len(Success))
+
+
+def compute_AUCs(dataset_val, dataset_tst, Bases,Pesos,gamma):
+
+    LabelAndPredictions=np.array(dataset_val.map(lambda x:_labelAndPrediction(x,Bases,Pesos,gamma)).collect())
+    fpr_val, tpr_val, th_val = roc_curve(LabelAndPredictions[:,0], LabelAndPredictions[:,1])
+    auc_val = auc(fpr_val, tpr_val)
+
+    LabelAndPredictions=np.array(dataset_tst.map(lambda x:_labelAndPrediction(x,Bases,Pesos,gamma)).collect())
+    fpr_tst, tpr_tst, th_tst = roc_curve(LabelAndPredictions[:,0], LabelAndPredictions[:,1])
+    auc_tst = auc(fpr_tst, tpr_tst)
+
+    return auc_val, auc_tst

@@ -28,21 +28,14 @@ def build_X1(x):
 
 
 def load_data(kdataset, kfold):
-    if kdataset == 1:
+    if kdataset == 0:
         mat = scipy.io.loadmat('./data/ripley_5fold.mat')
-        name_dataset = 'Ripley'
-
-    if kdataset == 2:
+    if kdataset == 1:
         mat = scipy.io.loadmat('./data/kwok_5fold.mat')
-        name_dataset = 'Kwok'
-
-    if kdataset == 3:
+    if kdataset == 2:
         mat = scipy.io.loadmat('./data/twonorm_5fold.mat')
-        name_dataset = 'Twonorm'
-
-    if kdataset == 4:
+    if kdataset == 3:
         mat = scipy.io.loadmat('./data/waveform_5fold.mat')
-        name_dataset = 'Waveform'
 
     index_tr = mat['index_tr']
     index_val = mat['index_val']
@@ -53,8 +46,8 @@ def load_data(kdataset, kfold):
 
     #import code
     #code.interact(local=locals())
-    ind_tr = np.where(index_tr[:, kfold - 1] == 1)
-    ind_val = np.where(index_val[:, kfold - 1] == 1)
+    ind_tr = np.where(index_tr[:, kfold] == 1)
+    ind_val = np.where(index_val[:, kfold] == 1)
 
     x_tr_ = x_tr[ind_tr]
     y_tr_ = y_tr[ind_tr]
@@ -65,7 +58,7 @@ def load_data(kdataset, kfold):
     x_tst_ = x_tst
     y_tst_ = y_tst
 
-    return x_tr_, y_tr_, x_val_, y_val_, x_tst_, y_tst_, name_dataset
+    return x_tr_, y_tr_, x_val_, y_val_, x_tst_, y_tst_
 
 
 def get_inc_w(x, w, landa):

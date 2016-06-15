@@ -4,7 +4,10 @@
 from KernelUtils import *
 import time
 from scipy.linalg import cho_factor, cho_solve
-
+from sklearn.datasets import load_svmlight_file
+from pyspark.mllib.regression import LabeledPoint   
+from SGMAUtils import SGMA
+from ResultsUtils import compute_AUCs
 # IRWLS Procedure
 
 def IRWLS(originaldataset,Bases,C,gamma,Niter=100):
@@ -111,3 +114,27 @@ def _getK1andK2(trainingSet,Beta,C,iteration,samplingRate):
 
     return resultado
 
+def loadFile(filename,sc,dimensions):
+    X,Y = load_svmlight_file(filename,dimensions)
+    X=X.toarray()
+    return sc.parallelize(np.concatenate((Y.reshape((len(Y),1)),X),axis=1)).map(lambda x: LabeledPoint(x[0],x[1:]),12)
+
+
+def train_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, name_dataset, Niter, Samplefraction):
+
+    time_ini = time.time()
+    gamma = 1.0/(sigma*sigma)
+    datasetSize = XtrRDD.count()
+    samplingRate=min(1.0,1000.0/datasetSize)
+
+    Bases = SGMA(XtrRDD,NC,gamma,samplingRate)
+    
+    Pesos = IRWLS(XtrRDD,Bases,C,gamma)
+
+    auc_val, auc_tst = compute_AUCs(XvalRDD, XtstRDD, Bases,Pesos,gamma)
+
+    exe_time = time.time() - time_ini
+    print "AUCval = %f, AUCtst = %f" % (auc_val, auc_tst)
+    print "Elapsed_time = %f" % exe_time
+ 
+    return auc_val, auc_tst, exe_time
