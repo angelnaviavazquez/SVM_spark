@@ -9,8 +9,6 @@ import sys
 import numpy as np
 from KernelUtils import *
 
-sys.setrecursionlimit(30000)
-
 # It obtains the variable z of the error decrease.
 
 def _get_zeta(KcChol,knc):
@@ -24,15 +22,15 @@ def _get_eta(zeta,knc):
 
 # Partial Error Decrease
 
-def _errorDecrease(dato,Kdato,candidates,gamma,zetalist,samplingRate):
+def _errorDecrease(dato,Kdato,candidates,sigma,zetalist,samplingRate):
     resultado=np.zeros(len(candidates)) 
     if np.random.random()<samplingRate:
         if len(zetalist)==0:
             for i in range(len(candidates)):
-                resultado[i]=(kernel(candidates[i],dato,gamma)**2.0)  
+                resultado[i]=(kernel(candidates[i],dato,sigma)**2.0)  
         else:
             for i in range(len(candidates)):
-                resultado[i]=((Kdato.dot(zetalist[i])-kernel(candidates[i],dato,gamma))**2.0)        
+                resultado[i]=((Kdato.dot(zetalist[i])-kernel(candidates[i],dato,sigma))**2.0)        
     return resultado
 
 
@@ -46,8 +44,10 @@ def _rankUpdate(KcChol,knc):
 
 # SGMA Function
 
-def SGMA(originaldataset,numCentros,gamma,samplingRate):
+def SGMA(originaldataset,numCentros,sigma,samplingRate):
 
+    sys.setrecursionlimit(30000)
+    
     # Basis list and Cholesky Factorization Initialization
     
     Bases=list()
@@ -81,17 +81,17 @@ def SGMA(originaldataset,numCentros,gamma,samplingRate):
         if len(Bases)==0: 
             
             # First Centroid
-            Descenso =  dataset.map(lambda x:_errorDecrease(x[0],x[1],candidates,gamma,list(),samplingRate)).reduce(lambda a,b:a+b)            
+            Descenso =  dataset.map(lambda x:_errorDecrease(x[0],x[1],candidates,sigma,list(),samplingRate)).reduce(lambda a,b:a+b)            
         else:
             
             # Parallel variables
-            knclist = Parallel(n_jobs=num_cores)(delayed(kncVector)(Bases,candidate,gamma) for candidate in candidates)
+            knclist = Parallel(n_jobs=num_cores)(delayed(kncVector)(Bases,candidate,sigma) for candidate in candidates)
             zetalist = Parallel(n_jobs=num_cores)(delayed(_get_zeta)(KcChol,knc) for knc in knclist)
             etalist = Parallel(n_jobs=num_cores)(delayed(_get_eta)(zetalist[i],knclist[i]) for i in range(len(candidates)))
     
 
             # Cluster variables
-            Descenso =  dataset.map(lambda x:_errorDecrease(x[0],x[1],candidates,gamma,zetalist,samplingRate)).reduce(lambda a,b:a+b)
+            Descenso =  dataset.map(lambda x:_errorDecrease(x[0],x[1],candidates,sigma,zetalist,samplingRate)).reduce(lambda a,b:a+b)
 
             for i in range(len(etalist)):
                 Descenso[i]=etalist[i]*Descenso[i]
@@ -107,7 +107,7 @@ def SGMA(originaldataset,numCentros,gamma,samplingRate):
         
         print "Updating Matrices",
               
-        dataset = dataset.map(lambda x:(x[0],np.concatenate((x[1],np.array([kernel(candidates[maximo],x[0],gamma)])))))
+        dataset = dataset.map(lambda x:(x[0],np.concatenate((x[1],np.array([kernel(candidates[maximo],x[0],sigma)])))))
 
         if len(Bases)==0:
             KcChol=np.sqrt(np.array([[1.00001]]))
