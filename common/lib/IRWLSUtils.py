@@ -38,7 +38,7 @@ def hybrid_IRWLS(originaldataset,Bases,C,sigma,Niter=100):
         # IRWLS Procedure
         (K1,K2) = dataset.map(lambda x: _getK1andK2(x,Beta,C,i,1.0)).reduce(lambda a,b:(a[0]+b[0],a[1]+b[1]))
         K1[0:nBases+nDims,0:nBases+nDims]=K1[0:nBases+nDims,0:nBases+nDims]+KC 
-        
+                
         newBeta = solve(K1,K2)
         #try:               
         #    K1Chol = cho_factor(K1)
@@ -169,7 +169,9 @@ def _getK1andK2(trainingSet,Beta,C,iteration,samplingRate):
         else:
             error = trainingSet[0]-trainingSet[1].dot(Beta)[0,0]
             a=C/(samplingRate*error*trainingSet[0])   
-        
+            if a>10000.0:
+                a=10000.0
+                
         if a>0.0:
             resultado = (a*trainingSet[1].transpose().dot(trainingSet[1]),a*trainingSet[1].transpose().dot(trainingSet[0]))
 
@@ -184,7 +186,7 @@ def loadFile(filename,sc,dimensions, Npartitions):
 def train_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
 
     time_ini = time.time()
-    
+    gamma = 1.0/(sigma*sigma)   
     datasetSize = XtrRDD.count()
     samplingRate=min(1.0,1000.0/datasetSize)
 
@@ -213,7 +215,6 @@ def train_hybrid_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
     Pesos = hybrid_IRWLS(XtrRDD,Bases,C,sigma)
 
     auc_tr, auc_val, auc_tst = compute_hybrid_AUCs(XtrRDD, XvalRDD, XtstRDD, Bases,Pesos,sigma)
-
     elapsed_time = time.time() - time_ini
     
     print "AUCtr = %f, AUCval = %f, AUCtst = %f" % (auc_tr, auc_val, auc_tst)
@@ -221,21 +222,21 @@ def train_hybrid_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
     return auc_tr, auc_val, auc_tst, elapsed_time
 
 
-
 def train_random_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
 
     # sustituimos SGMA por random sampling directo
     time_ini = time.time()
+    gamma = 1.0 / (sigma * sigma)
 
     datasetSize = XtrRDD.count()
-    samplingRate=min(1.0,1000.0/datasetSize)
+    samplingRate = min(1.0, 1000.0 / datasetSize)
     
     base = XtrRDD.takeSample(False, NC, 1234)
     Bases = [np.array(x.features) for x in base]
 
-    Pesos = IRWLS(XtrRDD,Bases,C,sigma)
+    Pesos = IRWLS(XtrRDD, Bases, C, gamma)
 
-    auc_tr, auc_val, auc_tst = compute_AUCs(XtrRDD, XvalRDD, XtstRDD, Bases,Pesos,sigma)
+    auc_tr, auc_val, auc_tst = compute_AUCs(XtrRDD, XvalRDD, XtstRDD, Bases, Pesos, gamma)
 
     elapsed_time = time.time() - time_ini
     
