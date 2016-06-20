@@ -226,20 +226,20 @@ def train_random_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
 
     # sustituimos SGMA por random sampling directo
     time_ini = time.time()
-    gamma = 1.0 / (sigma * sigma)
 
     datasetSize = XtrRDD.count()
     samplingRate = min(1.0, 1000.0 / datasetSize)
     
     base = XtrRDD.takeSample(False, NC, 1234)
     Bases = [np.array(x.features) for x in base]
+    
+    Pesos = IRWLS(XtrRDD, Bases, C, sigma)
 
-    Pesos = IRWLS(XtrRDD, Bases, C, gamma)
-
-    auc_tr, auc_val, auc_tst = compute_AUCs(XtrRDD, XvalRDD, XtstRDD, Bases, Pesos, gamma)
+    auc_tr, auc_val, auc_tst = compute_AUCs(XtrRDD, XvalRDD, XtstRDD, Bases, Pesos, sigma)
 
     elapsed_time = time.time() - time_ini
     
     print "AUCtr = %f, AUCval = %f, AUCtst = %f" % (auc_tr, auc_val, auc_tst)
     print "Elapsed_time = %f" % elapsed_time
     return auc_tr, auc_val, auc_tst, elapsed_time
+    
