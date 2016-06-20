@@ -1,0 +1,44 @@
+#!/bin/bash
+COARSE_FLAG=true
+CORES=500
+TIMEOUT=300
+SVERSION=1.6.0
+PYSPARK_CONFIG_FILE_OPT=""
+MEMORY_MAX=2G
+
+while getopts "Cc:n:T:V:F:M:" flag
+  do
+    case $flag in
+        C)
+          COARSE_FLAG=true
+        ;;
+        c)
+          CORES=$OPTARG
+        ;;
+        n)
+          TASKNAME="$OPTARG"
+        ;;
+	T)
+	  TIMEOUT=$OPTARG
+	;;
+	V)
+	  SVERSION=${OPTARG}
+	;;
+	M)
+	  MEMORY_MAX=${OPTARG}
+	;;
+    esac
+  done
+
+export SITE_NAME=`uname -n`
+export SPARK_HOME=/opt/spark-${SVERSION}-bin-2.6.0
+export PYSPARK_DRIVER_PYTHON=jupyter
+export LD_PRELOAD=/opt/intel/composerxe/mkl/lib/intel64/libmkl_core.so:/opt/intel/composerxe/compiler/lib/intel64/libiomp5.so:/opt/intel/composerxe/mkl/lib/intel64/libmkl_rt.so
+export SPARK_DRIVER_OPTS="--conf spark.driver.maxResultSize=${MEMORY_MAX} --driver-memory 20G --driver-cores 8 --driver-class-path /etc/hadoop/hdfs-site.xml:/etc/hadoop/core-site.xml:/etc/hadoop"
+export SPARK_EXECUTOR_OPTS="--executor-memory 8G --total-executor-cores ${CORES} --conf spark.executorEnv.LD_PRELOAD=${LD_PRELOAD}"
+export SPARK_PARAMETERS="--conf spark.executor.uri=/opt/spark-dist/spark-${SVERSION}-bin-2.6.0.tgz --conf spark.mesos.coarse=${COARSE_FLAG} --packages com.databricks:spark-csv_2.11:1.2.0 ${SPARK_DRIVER_OPTS} ${SPARK_EXECUTOR_OPTS} --master mesos://zk://10.0.12.58:2181,10.0.12.59:2181,10.0.12.51:2181,10.0.12.52:2181,10.0.12.60:2181,10.0.12.61:2181,10.0.12.18:2181/mesos"
+export LOCAL_SPARK_JAVA_OPTS="--conf spark.executor.extraJavaOptions=-XX:+UseHugeTLBFS --conf spark.rpc.askTimeout=${TIMEOUT} --conf spark.network.timeout=${TIMEOUT}"
+PYSPARK_SSL_OPTIONS=""
+export PYSPARK_DRIVER_PYTHON_OPTS="notebook ${PYSPARK_SSL_OPTIONS} ${PYSPARK_CONFIG_FILE_OPT} --ip='*'"
+export SPARKR_SUBMIT_ARGS="${SPARK_PARAMETERS} ${LOCAL_SPARK_JAVA_OPTS} sparkr-shell " 
+${SPARK_HOME}/bin/pyspark --name "${TASKNAME}:${SITE_NAME}" ${SPARK_PARAMETERS} ${LOCAL_SPARK_JAVA_OPTS}

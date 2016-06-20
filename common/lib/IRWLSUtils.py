@@ -181,7 +181,13 @@ def _getK1andK2(trainingSet,Beta,C,iteration,samplingRate):
 def loadFile(filename,sc,dimensions, Npartitions):
     X,Y = load_svmlight_file(filename,dimensions)
     X=X.toarray()
-    return sc.parallelize(np.concatenate((Y.reshape((len(Y),1)),X),axis=1)).map(lambda x: LabeledPoint(x[0],x[1:]),Npartitions)
+
+    if Npartitions > 0:
+        RDD = sc.parallelize(np.concatenate((Y.reshape((len(Y),1)),X),axis=1)).map(lambda x: LabeledPoint(x[0],x[1:]),Npartitions)
+    else:
+        RDD = sc.parallelize(np.concatenate((Y.reshape((len(Y),1)),X),axis=1)).map(lambda x: LabeledPoint(x[0],x[1:]))
+
+    return RDD
 
 
 def train_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
