@@ -9,6 +9,7 @@ from pyspark.mllib.regression import LabeledPoint
 from SGMAUtils import SGMA
 from ResultsUtils import compute_AUCs, compute_hybrid_AUCs
 import numpy as np
+from pyspark.mllib.clustering import KMeans, KMeansModel
 # IRWLS Procedure
 
 
@@ -188,6 +189,15 @@ def train_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
     datasetSize = XtrRDD.count()
     samplingRate=min(1.0,1000.0/datasetSize)
 
+    # comprobando el tipo de etiquetas del dataset, deben ser 0, 1, no -1 , 1
+    labels = set(XtrRDD.map(lambda x: x.label).take(100))
+    #print labels
+    if 0 in labels:
+        print "Mapping labels to (-1, 1)..."
+        XtrRDD = XtrRDD.map(lambda x: LabeledPoint(x.label * 2.0 - 1.0, x.features))
+        XvalRDD = XvalRDD.map(lambda x: LabeledPoint(x.label * 2.0 - 1.0, x.features))
+        XtstRDD = XtstRDD.map(lambda x: LabeledPoint(x.label * 2.0 - 1.0, x.features))
+
     Bases = SGMA(XtrRDD,NC,sigma,samplingRate)
     
     Pesos = IRWLS(XtrRDD,Bases,C,sigma)
@@ -196,17 +206,33 @@ def train_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
 
     elapsed_time = time.time() - time_ini
     
-    print "AUCtr = %f, AUCval = %f, AUCtst = %f" % (auc_tr, auc_val, auc_tst)
-    print "Elapsed_time = %f" % elapsed_time
     return auc_tr, auc_val, auc_tst, elapsed_time
 
 
 def train_hybrid_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
 
     time_ini = time.time()
+
+    # comprobando el tipo de etiquetas del dataset, deben ser 0, 1, no -1 , 1
+    labels = set(XtrRDD.map(lambda x: x.label).take(100))
+    #print labels
+    if 0 in labels:
+        print "Mapping labels to (-1, 1)..."
+        XtrRDD = XtrRDD.map(lambda x: LabeledPoint(x.label * 2.0 - 1.0, x.features))
+        XvalRDD = XvalRDD.map(lambda x: LabeledPoint(x.label * 2.0 - 1.0, x.features))
+        XtstRDD = XtstRDD.map(lambda x: LabeledPoint(x.label * 2.0 - 1.0, x.features))
     
     datasetSize = XtrRDD.count()
     samplingRate=min(1.0,1000.0/datasetSize)
+
+    # comprobando el tipo de etiquetas del dataset, deben ser 0, 1, no -1 , 1
+    labels = set(XtrRDD.map(lambda x: x.label).take(100))
+    #print labels
+    if 0 in labels:
+        print "Mapping labels to (-1, 1)..."
+        XtrRDD = XtrRDD.map(lambda x: LabeledPoint(x.label * 2.0 - 1.0, x.features))
+        XvalRDD = XvalRDD.map(lambda x: LabeledPoint(x.label * 2.0 - 1.0, x.features))
+        XtstRDD = XtstRDD.map(lambda x: LabeledPoint(x.label * 2.0 - 1.0, x.features))
 
     Bases = SGMA(XtrRDD,NC,sigma,samplingRate)
     
@@ -215,8 +241,6 @@ def train_hybrid_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
     auc_tr, auc_val, auc_tst = compute_hybrid_AUCs(XtrRDD, XvalRDD, XtstRDD, Bases,Pesos,sigma)
     elapsed_time = time.time() - time_ini
     
-    print "AUCtr = %f, AUCval = %f, AUCtst = %f" % (auc_tr, auc_val, auc_tst)
-    print "Elapsed_time = %f" % elapsed_time
     return auc_tr, auc_val, auc_tst, elapsed_time
 
 
@@ -225,6 +249,15 @@ def train_random_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
     # sustituimos SGMA por random sampling directo
     time_ini = time.time()
     gamma = 1.0 / (sigma * sigma)
+
+    # comprobando el tipo de etiquetas del dataset, deben ser 0, 1, no -1 , 1
+    labels = set(XtrRDD.map(lambda x: x.label).take(100))
+    #print labels
+    if 0 in labels:
+        print "Mapping labels to (-1, 1)..."
+        XtrRDD = XtrRDD.map(lambda x: LabeledPoint(x.label * 2.0 - 1.0, x.features))
+        XvalRDD = XvalRDD.map(lambda x: LabeledPoint(x.label * 2.0 - 1.0, x.features))
+        XtstRDD = XtstRDD.map(lambda x: LabeledPoint(x.label * 2.0 - 1.0, x.features))
 
     datasetSize = XtrRDD.count()
     samplingRate = min(1.0, 1000.0 / datasetSize)
@@ -237,7 +270,37 @@ def train_random_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
     auc_tr, auc_val, auc_tst = compute_AUCs(XtrRDD, XvalRDD, XtstRDD, Bases, Pesos, gamma)
 
     elapsed_time = time.time() - time_ini
+
+    return auc_tr, auc_val, auc_tst, elapsed_time
+
+
+def train_kmeans_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
+
+    # sustituimos SGMA por kmeans
+    time_ini = time.time()
+    gamma = 1.0 / (sigma * sigma)
+
+    # comprobando el tipo de etiquetas del dataset, deben ser 0, 1, no -1 , 1
+    labels = set(XtrRDD.map(lambda x: x.label).take(100))
+    #print labels
+    if 0 in labels:
+        print "Mapping labels to (-1, 1)..."
+        XtrRDD = XtrRDD.map(lambda x: LabeledPoint(x.label * 2.0 - 1.0, x.features))
+        XvalRDD = XvalRDD.map(lambda x: LabeledPoint(x.label * 2.0 - 1.0, x.features))
+        XtstRDD = XtstRDD.map(lambda x: LabeledPoint(x.label * 2.0 - 1.0, x.features))
+
+    datasetSize = XtrRDD.count()
+    samplingRate = min(1.0, 1000.0 / datasetSize)
     
-    print "AUCtr = %f, AUCval = %f, AUCtst = %f" % (auc_tr, auc_val, auc_tst)
-    print "Elapsed_time = %f" % elapsed_time
+    print "Clustering with Kmeans..."
+    clusters = KMeans.train(XtrRDD.map(lambda x: x.features), NC, maxIterations=80, initializationMode="random")
+    base = np.array(clusters.centers)
+    Bases = [np.array(x.features) for x in base]
+
+    Pesos = IRWLS(XtrRDD, Bases, C, gamma)
+
+    auc_tr, auc_val, auc_tst = compute_AUCs(XtrRDD, XvalRDD, XtstRDD, Bases, Pesos, gamma)
+
+    elapsed_time = time.time() - time_ini
+
     return auc_tr, auc_val, auc_tst, elapsed_time

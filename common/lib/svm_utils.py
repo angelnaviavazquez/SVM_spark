@@ -46,8 +46,6 @@ def load_data(kdataset, kfold):
     y_tr = mat['y_tr']
     y_tst = mat['y_tst']
 
-    #import code
-    #code.interact(local=locals())
     ind_tr = np.where(index_tr[:, kfold] == 1)
     ind_val = np.where(index_val[:, kfold] == 1)
 
@@ -195,7 +193,6 @@ def build_kc(x, c, sigma):
     return x
 
 def train_nonlinearSVM(KtrRDD, C, landa, Niter, Samplefraction):
-
     x = KtrRDD.take(1)[0]
     NI = len(x.features)
     w = np.zeros(NI).reshape((NI,1))
@@ -243,6 +240,16 @@ def plot_ROC(Ytr, Ytst):
 def train_kernelgrad(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter, Samplefraction):
     
     time_ini = time()
+
+    # comprobando el tipo de etiquetas del dataset, deben ser 0, 1, no -1 , 1
+    labels = set(XtrRDD.map(lambda x: x.label).take(100))
+    #print labels
+    if 0 in labels:
+        print "Mapping labels to (-1, 1)..."
+        XtrRDD = XtrRDD.map(lambda x: LabeledPoint(x.label * 2.0 - 1.0, x.features))
+        XvalRDD = XvalRDD.map(lambda x: LabeledPoint(x.label * 2.0 - 1.0, x.features))
+        XtstRDD = XtstRDD.map(lambda x: LabeledPoint(x.label * 2.0 - 1.0, x.features))
+
     eta = C
     landa = 1.0 / C
     NPtr = XtrRDD.count()
@@ -313,8 +320,6 @@ def train_kernelgrad(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter, Samplefracti
     fpr_tst, tpr_tst, th_tst = roc_curve(np.array(Ytst)[:,0], np.array(Ytst)[:,1])
     auc_tst = auc(fpr_tst, tpr_tst)
 
-    print "AUCtr = %f, AUCval = %f, AUCtst = %f" % (auc_tr, auc_val, auc_tst)
-    print "Elapsed_time = %f" % elapsed_time
     return auc_tr, auc_val, auc_tst, elapsed_time
 
 
@@ -323,6 +328,16 @@ def train_hybridSVM(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter, Samplefractio
     time_ini = time()
     eta = C
     landa = 1.0 / C
+
+    # comprobando el tipo de etiquetas del dataset, deben ser 0, 1, no -1 , 1
+    labels = set(XtrRDD.map(lambda x: x.label).take(100))
+    #print labels
+    if 0 in labels:
+        print "Mapping labels to (-1, 1)..."
+        XtrRDD = XtrRDD.map(lambda x: LabeledPoint(x.label * 2.0 - 1.0, x.features))
+        XvalRDD = XvalRDD.map(lambda x: LabeledPoint(x.label * 2.0 - 1.0, x.features))
+        XtstRDD = XtstRDD.map(lambda x: LabeledPoint(x.label * 2.0 - 1.0, x.features))
+    
     NPtr = XtrRDD.count()
     #NPval = XvalRDD.count()
     #NPtst = XtstRDD.count()
@@ -382,13 +397,21 @@ def train_hybridSVM(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter, Samplefractio
     fpr_tst, tpr_tst, th_tst = roc_curve(np.array(Ytst)[:,0], np.array(Ytst)[:,1])
     auc_tst = auc(fpr_tst, tpr_tst)
 
-    print "AUCtr = %f, AUCval = %f, AUCtst = %f" % (auc_tr, auc_val, auc_tst)
-    print "Elapsed_time = %f" % elapsed_time
     return auc_tr, auc_val, auc_tst, elapsed_time
     
 
 def train_linear_SVM(XtrRDD, XvalRDD, XtstRDD):
     time_ini = time()
+
+    # comprobando el tipo de etiquetas del dataset, deben ser 0, 1, no -1 , 1
+    labels = set(XtrRDD.map(lambda x: x.label).take(100))
+    #print labels
+    if -1 in labels:
+        XtrRDD = XtrRDD.map(lambda x: LabeledPoint((x.label + 1) / 2, x.features))
+        XvalRDD = XvalRDD.map(lambda x: LabeledPoint((x.label + 1) / 2, x.features))
+        XtstRDD = XtstRDD.map(lambda x: LabeledPoint((x.label + 1) / 2, x.features))
+    #labels = set(XtrRDD.map(lambda x: x.label).take(100))
+    #print labels
 
     model = SVMWithSGD.train(XtrRDD, iterations=100)
 
@@ -411,21 +434,26 @@ def train_linear_SVM(XtrRDD, XvalRDD, XtstRDD):
     fpr_tst, tpr_tst, th_tst = roc_curve(np.array(Ytst)[:,0], np.array(Ytst)[:,1])
     auc_tst = auc(fpr_tst, tpr_tst)
 
-    print "AUCtr = %f, AUCval = %f, AUCtst = %f" % (auc_tr, auc_val, auc_tst)
-    print "Elapsed_time = %f" % elapsed_time
     return auc_tr, auc_val, auc_tst, elapsed_time
 
 
 def train_logistic(XtrRDD, XvalRDD, XtstRDD):
     time_ini = time()
 
+    # comprobando el tipo de etiquetas del dataset, deben ser 0, 1, no -1 , 1
+    labels = set(XtrRDD.map(lambda x: x.label).take(100))
+    #print labels
+    if -1 in labels:
+        XtrRDD = XtrRDD.map(lambda x: LabeledPoint((x.label + 1) / 2, x.features))
+        XvalRDD = XvalRDD.map(lambda x: LabeledPoint((x.label + 1) / 2, x.features))
+        XtstRDD = XtstRDD.map(lambda x: LabeledPoint((x.label + 1) / 2, x.features))
+    #labels = set(XtrRDD.map(lambda x: x.label).take(100))
+    #print labels
     model = LogisticRegressionWithLBFGS.train(XtrRDD)
 
     y_pred_trRDD = XtrRDD.map(lambda x: (x.label, model.predict(x.features)))
     y_pred_valRDD = XvalRDD.map(lambda x: (x.label, model.predict(x.features)))
     y_pred_tstRDD = XtstRDD.map(lambda x: (x.label, model.predict(x.features)))
-
-
     elapsed_time = time() - time_ini
 
     #labels_and_preds = test_data.map(lambda p: (p.label, logit_model.predict(p.features)))
@@ -443,6 +471,4 @@ def train_logistic(XtrRDD, XvalRDD, XtstRDD):
     fpr_tst, tpr_tst, th_tst = roc_curve(np.array(Ytst)[:,0], np.array(Ytst)[:,1])
     auc_tst = auc(fpr_tst, tpr_tst)
 
-    print "AUCtr = %f, AUCval = %f, AUCtst = %f" % (auc_tr, auc_val, auc_tst)
-    print "Elapsed_time = %f" % elapsed_time
     return auc_tr, auc_val, auc_tst, elapsed_time
