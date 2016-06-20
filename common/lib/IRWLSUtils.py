@@ -39,7 +39,7 @@ def hybrid_IRWLS(originaldataset,Bases,C,sigma,Niter=100):
         # IRWLS Procedure
         (K1,K2) = dataset.map(lambda x: _getK1andK2(x,Beta,C,i,1.0)).reduce(lambda a,b:(a[0]+b[0],a[1]+b[1]))
         K1[0:nBases+nDims,0:nBases+nDims]=K1[0:nBases+nDims,0:nBases+nDims]+KC 
-        
+                
         newBeta = solve(K1,K2)
         #try:               
         #    K1Chol = cho_factor(K1)
@@ -170,7 +170,9 @@ def _getK1andK2(trainingSet,Beta,C,iteration,samplingRate):
         else:
             error = trainingSet[0]-trainingSet[1].dot(Beta)[0,0]
             a=C/(samplingRate*error*trainingSet[0])   
-        
+            if a>10000.0:
+                a=10000.0
+                
         if a>0.0:
             resultado = (a*trainingSet[1].transpose().dot(trainingSet[1]),a*trainingSet[1].transpose().dot(trainingSet[0]))
 
