@@ -256,7 +256,6 @@ def train_random_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
 
     # sustituimos SGMA por random sampling directo
     time_ini = time.time()
-    gamma = 1.0 / (sigma * sigma)
 
     # comprobando el tipo de etiquetas del dataset, deben ser 0, 1, no -1 , 1
     labels = set(XtrRDD.map(lambda x: x.label).take(100))
@@ -272,10 +271,10 @@ def train_random_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
     
     base = XtrRDD.takeSample(False, NC, 1234)
     Bases = [np.array(x.features) for x in base]
+    
+    Pesos = IRWLS(XtrRDD, Bases, C, sigma)
 
-    Pesos = IRWLS(XtrRDD, Bases, C, gamma)
-
-    auc_tr, auc_val, auc_tst = compute_AUCs(XtrRDD, XvalRDD, XtstRDD, Bases, Pesos, gamma)
+    auc_tr, auc_val, auc_tst = compute_AUCs(XtrRDD, XvalRDD, XtstRDD, Bases, Pesos, sigma)
 
     elapsed_time = time.time() - time_ini
 
@@ -312,3 +311,4 @@ def train_kmeans_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
     elapsed_time = time.time() - time_ini
 
     return auc_tr, auc_val, auc_tst, elapsed_time
+    
