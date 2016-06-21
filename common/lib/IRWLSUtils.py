@@ -192,7 +192,6 @@ def loadFile(filename,sc,dimensions, Npartitions):
 
 def train_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
 
-    time_ini = time.time()
     gamma = 1.0/(sigma*sigma)   
     datasetSize = XtrRDD.count()
     samplingRate=min(1.0,1000.0/datasetSize)
@@ -205,6 +204,7 @@ def train_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
         XtrRDD = XtrRDD.map(lambda x: LabeledPoint(x.label * 2.0 - 1.0, x.features))
         XvalRDD = XvalRDD.map(lambda x: LabeledPoint(x.label * 2.0 - 1.0, x.features))
         XtstRDD = XtstRDD.map(lambda x: LabeledPoint(x.label * 2.0 - 1.0, x.features))
+    time_ini = time.time()
 
     Bases = SGMA(XtrRDD,NC,sigma,samplingRate)
     
@@ -219,7 +219,6 @@ def train_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
 
 def train_hybrid_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
 
-    time_ini = time.time()
 
     # comprobando el tipo de etiquetas del dataset, deben ser 0, 1, no -1 , 1
     labels = set(XtrRDD.map(lambda x: x.label).take(100))
@@ -242,6 +241,8 @@ def train_hybrid_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
         XvalRDD = XvalRDD.map(lambda x: LabeledPoint(x.label * 2.0 - 1.0, x.features))
         XtstRDD = XtstRDD.map(lambda x: LabeledPoint(x.label * 2.0 - 1.0, x.features))
 
+    time_ini = time.time()
+
     Bases = SGMA(XtrRDD,NC,sigma,samplingRate)
     
     Pesos = hybrid_IRWLS(XtrRDD,Bases,C,sigma)
@@ -255,7 +256,6 @@ def train_hybrid_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
 def train_random_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
 
     # sustituimos SGMA por random sampling directo
-    time_ini = time.time()
 
     # comprobando el tipo de etiquetas del dataset, deben ser 0, 1, no -1 , 1
     labels = set(XtrRDD.map(lambda x: x.label).take(100))
@@ -269,6 +269,7 @@ def train_random_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
     datasetSize = XtrRDD.count()
     samplingRate = min(1.0, 1000.0 / datasetSize)
     
+    time_ini = time.time()
     base = XtrRDD.takeSample(False, NC, 1234)
     Bases = [np.array(x.features) for x in base]
     
@@ -284,7 +285,6 @@ def train_random_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
 def train_kmeans_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
 
     # sustituimos SGMA por kmeans
-    time_ini = time.time()
     gamma = 1.0 / (sigma * sigma)
 
     # comprobando el tipo de etiquetas del dataset, deben ser 0, 1, no -1 , 1
@@ -298,6 +298,8 @@ def train_kmeans_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
 
     datasetSize = XtrRDD.count()
     samplingRate = min(1.0, 1000.0 / datasetSize)
+
+    time_ini = time.time()
     
     print "Clustering with Kmeans..."
     clusters = KMeans.train(XtrRDD.map(lambda x: x.features), NC, maxIterations=80, initializationMode="random")
