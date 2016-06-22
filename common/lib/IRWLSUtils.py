@@ -8,7 +8,7 @@ from sklearn.datasets import load_svmlight_file
 from pyspark.mllib.regression import LabeledPoint   
 from pyspark.mllib.tree import DecisionTree, DecisionTreeModel
 from SGMAUtils import SGMA
-from ResultsUtils import compute_DT_AUCs, compute_AUCs, compute_hybrid_AUCs
+from ResultsUtils import compute_AUCs, compute_hybrid_AUCs
 import numpy as np
 from pyspark.mllib.clustering import KMeans, KMeansModel
 # IRWLS Procedure
@@ -127,38 +127,7 @@ def IRWLS(originaldataset,Bases,C,sigma,Niter=100, stop_criteria=1e-6):
     return bestBeta    
 
 
-# Stochastic IRWLS version
 
-def StochasticIRWLS(originaldataset, Bases, C, sigma, Niter, samplingRate, eta):
-    
-    #From labeledPoint to tuples label, kernel vector
-    nBases=len(Bases)    
-    dataset = originaldataset.map(lambda x: (x.label,kncVector(Bases,x.features,sigma).transpose()))
-    
-    # Basis kernel matrix
-    KC=kernelMatrix(Bases,Bases,sigma)
-    
-    # Weights Initizalization
-    Beta = np.zeros(nBases)
-            
-    for i in range(Niter):        
-  
-        tInicioIter = time.time()
-    
-        # IRWLS procedure
-        (K1,K2) = dataset.map(lambda x: _getK1andK2(x,Beta,C,0,samplingRate)).reduce(lambda a,b:(a[0]+b[0],a[1]+b[1]))
-        K1[0:nBases,0:nBases]=K1[0:nBases,0:nBases]+KC                
-        K1Chol = cho_factor(K1)
-        newBeta = cho_solve(K1Chol,K2)
-
-        # Weights Updating
-        Beta = eta*newBeta + (1.0-eta)*Beta
-        
-        tFinIter = time.time()
-        
-        print "Iteration",(i+1),": Iteration Time", (tFinIter-tInicioIter)
-        
-    return Beta    
 
 
 def _getK1andK2(trainingSet,Beta,C,iteration,samplingRate):
@@ -193,12 +162,6 @@ def loadFile(filename,sc,dimensions, Npartitions):
 
 def train_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter=100, stop_criteria=1e-6):
 
-<<<<<<< HEAD
-    time_ini = time.time()
-
-=======
-    gamma = 1.0/(sigma*sigma)   
->>>>>>> navia
     datasetSize = XtrRDD.count()
     samplingRate=min(1.0,1000.0/datasetSize)
 
@@ -289,10 +252,7 @@ def train_random_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, stop_criteria=1e-
     return auc_tr, auc_val, auc_tst, elapsed_time
 
 
-def train_kmeans_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
-
-    # sustituimos SGMA por kmeans
-    gamma = 1.0 / (sigma * sigma)
+def train_kmeans_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter, stop_criteria=1e-6):
 
     # comprobando el tipo de etiquetas del dataset, deben ser 0, 1, no -1 , 1
     labels = set(XtrRDD.map(lambda x: x.label).take(100))
@@ -311,11 +271,13 @@ def train_kmeans_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
     print "Clustering with Kmeans..."
     clusters = KMeans.train(XtrRDD.map(lambda x: x.features), NC, maxIterations=80, initializationMode="random")
     base = np.array(clusters.centers)
-    Bases = [np.array(x.features) for x in base]
+  
+    Bases = [np.array(x) for x in base]
 
-    Pesos = IRWLS(XtrRDD, Bases, C, gamma)
+   
+    Pesos = IRWLS(XtrRDD, Bases, C, sigma, stop_criteria=stop_criteria)
 
-    auc_tr, auc_val, auc_tst = compute_AUCs(XtrRDD, XvalRDD, XtstRDD, Bases, Pesos, gamma)
+    auc_tr, auc_val, auc_tst = compute_AUCs(XtrRDD, XvalRDD, XtstRDD, Bases, Pesos, sigma)
 
     elapsed_time = time.time() - time_ini
 
