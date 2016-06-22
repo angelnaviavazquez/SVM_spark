@@ -6,13 +6,14 @@ import time
 from scipy.linalg import cho_factor, cho_solve, solve
 from sklearn.datasets import load_svmlight_file
 from pyspark.mllib.regression import LabeledPoint   
+from pyspark.mllib.tree import DecisionTree, DecisionTreeModel
 from SGMAUtils import SGMA
-from ResultsUtils import compute_AUCs, compute_hybrid_AUCs
+from ResultsUtils import compute_DT_AUCs, compute_AUCs, compute_hybrid_AUCs
 import numpy as np
 # IRWLS Procedure
 
 
-def hybrid_IRWLS(originaldataset,Bases,C,sigma,Niter=100):
+def hybrid_IRWLS(originaldataset,Bases,C,sigma,Niter=100,stop_criteria=1e-6):
     
     #From labeledPoint to tuples label, kernel vector
     nBases=len(Bases)  
@@ -51,7 +52,7 @@ def hybrid_IRWLS(originaldataset,Bases,C,sigma,Niter=100):
         Beta=newBeta
 
         # Check convergence
-        if condition<1e-6:
+        if condition < stop_criteria:
             return bestBeta
         
         if condition<bestCondition:
@@ -70,7 +71,7 @@ def hybrid_IRWLS(originaldataset,Bases,C,sigma,Niter=100):
     return bestBeta   
 
 
-def IRWLS(originaldataset,Bases,C,sigma,Niter=100):
+def IRWLS(originaldataset,Bases,C,sigma,Niter=100, stop_criteria=1e-6):
     
     #From labeledPoint to tuples label, kernel vector
     nBases=len(Bases)    
@@ -105,7 +106,7 @@ def IRWLS(originaldataset,Bases,C,sigma,Niter=100):
         Beta=newBeta
 
         # Check convergence
-        if condition<1e-6:
+        if condition<stop_criteria:
             return bestBeta
         
         if condition<bestCondition:
@@ -183,16 +184,16 @@ def loadFile(filename,sc,dimensions, Npartitions):
     return sc.parallelize(np.concatenate((Y.reshape((len(Y),1)),X),axis=1)).map(lambda x: LabeledPoint(x[0],x[1:]),Npartitions)
 
 
-def train_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
+def train_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter=100, stop_criteria=1e-6):
 
     time_ini = time.time()
-    gamma = 1.0/(sigma*sigma)   
+
     datasetSize = XtrRDD.count()
     samplingRate=min(1.0,1000.0/datasetSize)
 
     Bases = SGMA(XtrRDD,NC,sigma,samplingRate)
     
-    Pesos = IRWLS(XtrRDD,Bases,C,sigma)
+    Pesos = IRWLS(XtrRDD,Bases,C,sigma, stop_criteria=stop_criteria)
 
     auc_tr, auc_val, auc_tst = compute_AUCs(XtrRDD, XvalRDD, XtstRDD, Bases,Pesos,sigma)
 
@@ -203,7 +204,7 @@ def train_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
     return auc_tr, auc_val, auc_tst, elapsed_time
 
 
-def train_hybrid_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
+def train_hybrid_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter=100, stop_criteria=1e-6):
 
     time_ini = time.time()
     
@@ -212,7 +213,7 @@ def train_hybrid_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
 
     Bases = SGMA(XtrRDD,NC,sigma,samplingRate)
     
-    Pesos = hybrid_IRWLS(XtrRDD,Bases,C,sigma)
+    Pesos = hybrid_IRWLS(XtrRDD,Bases,C,sigma, stop_criteria=stop_criteria)
 
     auc_tr, auc_val, auc_tst = compute_hybrid_AUCs(XtrRDD, XvalRDD, XtstRDD, Bases,Pesos,sigma)
     elapsed_time = time.time() - time_ini
@@ -222,7 +223,7 @@ def train_hybrid_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
     return auc_tr, auc_val, auc_tst, elapsed_time
 
 
-def train_random_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
+def train_random_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, stop_criteria=1e-6):
 
     # sustituimos SGMA por random sampling directo
     time_ini = time.time()
@@ -232,8 +233,9 @@ def train_random_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
     
     base = XtrRDD.takeSample(False, NC, 1234)
     Bases = [np.array(x.features) for x in base]
+
     
-    Pesos = IRWLS(XtrRDD, Bases, C, sigma)
+    Pesos = IRWLS(XtrRDD, Bases, C, sigma, stop_criteria=stop_criteria)
 
     auc_tr, auc_val, auc_tst = compute_AUCs(XtrRDD, XvalRDD, XtstRDD, Bases, Pesos, sigma)
 
@@ -242,4 +244,3 @@ def train_random_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter):
     print "AUCtr = %f, AUCval = %f, AUCtst = %f" % (auc_tr, auc_val, auc_tst)
     print "Elapsed_time = %f" % elapsed_time
     return auc_tr, auc_val, auc_tst, elapsed_time
-    
