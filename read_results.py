@@ -16,14 +16,14 @@ import numpy as np
 results_path = "./results/"
 
 modelos = ['hybridgrad', 'kernelgrad', 'SGMA_IRWLS', 'LinearSVM', 'Logistic', 'random_IRWLS', 'hybrid_IRWLS', 'Kmeans_IRWLS']
-dataset_names = ['Ripley', 'Kwok', 'Twonorm', 'Waveform', 'Adult', 'Susy', 'KddCup1999']
+dataset_names = ['Ripley', 'Kwok', 'Twonorm', 'Waveform', 'Adult', 'Susy', 'KddCup1999', 'Higgs']
 
-kdataset = 5
+kdataset = 7
 kfold = 0
 modelo = 'SGMA_IRWLS'
-modelo = 'hybrid_IRWLS'
-Niter = 150
-NC = 20
+#modelo = 'hybrid_IRWLS'
+Niter = 300
+NC = 50
 Samplefraction = 0.05
 
 filename = results_path + 'dataset_' + str(kdataset) + '_modelo_' + modelo + '_NC_' + str(NC) + '_Niter_' + str(Niter) + '_kfold_' + str(kfold) + '.pkl'
