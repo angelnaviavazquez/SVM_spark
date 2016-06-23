@@ -76,7 +76,8 @@ def IRWLS(originaldataset,Bases,C,sigma,Niter=100, stop_criteria=1e-6):
     
     #From labeledPoint to tuples label, kernel vector
     nBases=len(Bases)    
-    dataset = originaldataset.map(lambda x: (x.label,kncVector(Bases,x.features,sigma).transpose()))
+    dataset = originaldataset.map(lambda x: (x.label,kncVector(Bases,x.features,sigma).transpose())).cache()
+    dataset.count()
     
     # Basis kernel matrix
     KC=kernelMatrix(Bases,Bases,sigma)
@@ -222,7 +223,7 @@ def train_hybrid_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter=100, s
     return auc_tr, auc_val, auc_tst, elapsed_time
 
 
-def train_random_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, stop_criteria=1e-6):
+def train_random_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter, stop_criteria=1e-6):
 
     # sustituimos SGMA por random sampling directo
 
