@@ -108,6 +108,7 @@ def SGMA(originaldataset,numCentros,sigma,samplingRate):
         print "Updating Matrices",
               
         dataset = dataset.map(lambda x:(x[0],np.concatenate((x[1],np.array([kernel(candidates[maximo],x[0],sigma)]))))).cache()
+        #dataset = dataset.map(lambda x:(x[0],np.concatenate((x[1],np.array([kernel(candidates[maximo],x[0],sigma)])))))
 
         if len(Bases)==0:
             KcChol=np.sqrt(np.array([[1.00001]]))

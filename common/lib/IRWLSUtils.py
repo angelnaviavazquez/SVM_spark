@@ -77,6 +77,7 @@ def IRWLS(originaldataset,Bases,C,sigma,Niter=100, stop_criteria=1e-6):
     #From labeledPoint to tuples label, kernel vector
     nBases=len(Bases)    
     dataset = originaldataset.map(lambda x: (x.label,kncVector(Bases,x.features,sigma).transpose())).cache()
+    #dataset = originaldataset.map(lambda x: (x.label,kncVector(Bases,x.features,sigma).transpose()))
     dataset.count()
     
     # Basis kernel matrix
