@@ -20,7 +20,8 @@ def hybrid_IRWLS(originaldataset,Bases,C,sigma,Niter=100,stop_criteria=1e-6):
     nBases=len(Bases)  
     nDims=len(np.array(originaldataset.first().features))
 
-    dataset = originaldataset.map(lambda x: (x.label,np.concatenate((np.array(x.features).reshape((1,nDims)),kncVector(Bases,x.features,sigma).transpose()),axis=1)))
+    dataset = originaldataset.map(lambda x: (x.label,np.concatenate((np.array(x.features).reshape((1,nDims)),kncVector(Bases,x.features,sigma).transpose()),axis=1))).cache()
+    dataset.count()
     
     # Basis kernel matrix
     KC=np.zeros((nDims+nBases,nDims+nBases))
