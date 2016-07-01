@@ -206,6 +206,17 @@ def text2labeled(text):
     return x
 
 
+def multiclass2binary(x):   
+    label = x.label
+    features = x.features
+    if label >=5:
+        label = 1.0
+    else:
+        label = -1.0
+    x = LabeledPoint(label, features)
+    return x
+
+
 def train_nonlinearSVM(KtrRDD, C, landa, Niter, Samplefraction):
     x = KtrRDD.take(1)[0]
     NI = len(x.features)
