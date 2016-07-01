@@ -14,7 +14,7 @@ from pyspark.mllib.clustering import KMeans, KMeansModel
 # IRWLS Procedure
 
 
-def hybrid_IRWLS(originaldataset,Bases,C,sigma,Niter=100,stop_criteria=1e-6):
+def hybrid_IRWLS(originaldataset,Bases,C,sigma,Niter=100,stop_criteria=1e-3):
     
     #From labeledPoint to tuples label, kernel vector
     nBases=len(Bases)  
@@ -73,7 +73,7 @@ def hybrid_IRWLS(originaldataset,Bases,C,sigma,Niter=100,stop_criteria=1e-6):
     return bestBeta   
 
 
-def IRWLSByKey(originaldataset,Bases,C,sigma,Niter=100, stop_criteria=1e-6):
+def IRWLSByKey(originaldataset,Bases,C,sigma,Niter=100, stop_criteria=1e-3):
     
     #From labeledPoint to tuples label, kernel vector
     nBases=len(Bases)    
@@ -129,7 +129,7 @@ def IRWLSByKey(originaldataset,Bases,C,sigma,Niter=100, stop_criteria=1e-6):
     return bestBeta 
 
 
-def IRWLS(originaldataset,Bases,C,sigma,Niter=100, stop_criteria=1e-6):
+def IRWLS(originaldataset,Bases,C,sigma,Niter=100, stop_criteria=1e-3):
     
     #From labeledPoint to tuples label, kernel vector
     nBases=len(Bases)    
@@ -238,7 +238,7 @@ def loadFile(filename,sc,dimensions, Npartitions):
     return RDD
 
 
-def train_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter=100, stop_criteria=1e-6):
+def train_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter=100, stop_criteria=1e-3):
 
     datasetSize = XtrRDD.count()
     samplingRate=min(1.0,1000.0/datasetSize)
@@ -264,7 +264,7 @@ def train_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter=100, stop_cri
     return auc_tr, auc_val, auc_tst, elapsed_time
 
 
-def train_Ballanced_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter=100, stop_criteria=1e-6):
+def train_Ballanced_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter=100, stop_criteria=1e-3):
 
     datasetSize = XtrRDD.count()
     samplingRate=min(1.0,1000.0/datasetSize)
@@ -289,7 +289,7 @@ def train_Ballanced_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter=100
     
     return auc_tr, auc_val, auc_tst, elapsed_time
 
-def train_SGMA_IRWLS_ByKey(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter=100, stop_criteria=1e-6):
+def train_SGMA_IRWLS_ByKey(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter=100, stop_criteria=1e-3):
 
     datasetSize = XtrRDD.count()
     samplingRate=min(1.0,1000.0/datasetSize)
@@ -314,7 +314,7 @@ def train_SGMA_IRWLS_ByKey(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter=100, st
     
     return auc_tr, auc_val, auc_tst, elapsed_time
 
-def train_hybrid_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter=100, stop_criteria=1e-6):
+def train_hybrid_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter=100, stop_criteria=1e-3):
 
 
     # comprobando el tipo de etiquetas del dataset, deben ser 0, 1, no -1 , 1
@@ -350,7 +350,7 @@ def train_hybrid_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter=100, s
     return auc_tr, auc_val, auc_tst, elapsed_time
 
 
-def train_random_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter, stop_criteria=1e-6):
+def train_random_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter, stop_criteria=1e-3):
 
     # sustituimos SGMA por random sampling directo
 
@@ -380,7 +380,7 @@ def train_random_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter, stop_crite
     return auc_tr, auc_val, auc_tst, elapsed_time
 
 
-def train_kmeans_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter, stop_criteria=1e-6):
+def train_kmeans_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter, stop_criteria=1e-3):
 
     # comprobando el tipo de etiquetas del dataset, deben ser 0, 1, no -1 , 1
     labels = set(XtrRDD.map(lambda x: x.label).take(100))
