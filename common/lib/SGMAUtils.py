@@ -147,7 +147,6 @@ def SGMA(originaldataset,numCentros,sigma,samplingRate):
     # Mapping from labeledPoint features to numpy array
     
     originaldataset=originaldataset.map(lambda x: np.array(x.features))
-    originaldataset.cache()
     
     dataset =  originaldataset.map(lambda x:(x,np.array([])))
     dataset.count()
