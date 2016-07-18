@@ -145,6 +145,7 @@ def IRWLS(originaldataset,Bases,C,sigma,Niter=100, stop_criteria=1e-3):
     bestBeta = Beta    
     iterSinceBestCondition = 0
     bestCondition = np.Infinity    
+    NSVs = -99
     
     for i in range(Niter):
         
@@ -177,15 +178,12 @@ def IRWLS(originaldataset,Bases,C,sigma,Niter=100, stop_criteria=1e-3):
             iterSinceBestCondition+=1                
             if iterSinceBestCondition>=5:
                 return bestBeta
-
         
         tFinIter = time.time()
         
         print "Iteration",(i+1),": DeltaW/W",condition,", Iteration Time", (tFinIter-tInicioIter)
         
-    return bestBeta    
-
-
+    return bestBeta, NSVs
 
 
 
@@ -255,13 +253,13 @@ def train_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter=100, stop_cri
 
     Bases = SGMA(XtrRDD,NC,sigma,samplingRate)
     
-    Pesos = IRWLS(XtrRDD,Bases,C,sigma, stop_criteria=stop_criteria)
+    Pesos, NSVs = IRWLS(XtrRDD,Bases,C,sigma, stop_criteria=stop_criteria)
 
     auc_tr, auc_val, auc_tst = compute_AUCs(XtrRDD, XvalRDD, XtstRDD, Bases,Pesos,sigma)
 
     elapsed_time = time.time() - time_ini
     
-    return auc_tr, auc_val, auc_tst, elapsed_time
+    return auc_tr, auc_val, auc_tst, elapsed_time, NSVs
 
 
 def train_Ballanced_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter=100, stop_criteria=1e-3):

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 from pyspark.mllib.regression import LabeledPoint
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from sklearn.metrics import roc_curve, auc, roc_auc_score
 import scipy.io
 from pyspark.mllib.clustering import KMeans, KMeansModel
@@ -9,7 +9,7 @@ from pyspark.mllib.clustering import GaussianMixture
 from numpy import array
 from math import sqrt
 import numpy as np
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from time import time
 from pyspark.mllib.classification import SVMWithSGD, SVMModel
 from pyspark.mllib.classification import LogisticRegressionWithLBFGS, LogisticRegressionModel
@@ -93,7 +93,7 @@ def in_margin(x, w):
     yKw = ytr * np.dot(k, w)
     return yKw < 1
 
-
+'''
 def plot_linear_SVM(xtr, ytr, w, c, name_dataset):
     
     index1labels = np.where(ytr > 0)
@@ -162,7 +162,7 @@ def plot_hybrid_SVM(xtr, ytr, w, c, name_dataset):
     plt.title(name_dataset)
     plt.grid(True)
     plt.show()
-
+'''
     
 def kernelG(x,c,sigma):
     NC = c.shape[0]
@@ -243,6 +243,7 @@ def predict(x, w):
     y_pred = np.dot(k, w)
     return y_pred
 
+'''
 def plot_ROC(Ytr, Ytst):
     fpr_tr, tpr_tr, th_tr = roc_curve(np.array(Ytr)[:,0], np.array(Ytr)[:,1])
     auc_tr = auc(fpr_tr, tpr_tr)
@@ -252,14 +253,15 @@ def plot_ROC(Ytr, Ytst):
     auc_tst = auc(fpr_tst, tpr_tst)
     #plt.plot(fpr_tst, tpr_tst,'g')
 
-    '''
+
     plt.xlabel('fpr')
     plt.ylabel('tpr')
     plt.title(name_dataset)
     plt.grid(True)
     plt.show()
-    '''
+
     return auc_tst
+'''
 
                   
 def train_kernelgrad(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter, Samplefraction):
