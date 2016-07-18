@@ -70,7 +70,9 @@ def hybrid_IRWLS(originaldataset,Bases,C,sigma,Niter=100,stop_criteria=1e-3):
         
         print "Iteration",(i+1),": DeltaW/W",condition,", Iteration Time", (tFinIter-tInicioIter)
         
-    return bestBeta   
+    nSVs = dataset.map(lambda x: _isSV(x,Beta,C)).reduce(lambda a,b:a+b)
+    
+    return bestBeta, nSVs
 
 
 def IRWLSByKey(originaldataset,Bases,C,sigma,Niter=100, stop_criteria=1e-3):
@@ -126,7 +128,9 @@ def IRWLSByKey(originaldataset,Bases,C,sigma,Niter=100, stop_criteria=1e-3):
         
         print "Iteration",(i+1),": DeltaW/W",condition,", Iteration Time", (tFinIter-tInicioIter)
         
-    return bestBeta 
+    nSVs = dataset.map(lambda x: _isSV(x,Beta,C)).reduce(lambda a,b:a+b)
+    
+    return bestBeta, nSVs        
 
 
 def IRWLS(originaldataset,Bases,C,sigma,Niter=100, stop_criteria=1e-3):
@@ -168,7 +172,7 @@ def IRWLS(originaldataset,Bases,C,sigma,Niter=100, stop_criteria=1e-3):
 
         # Check convergence
         if condition<stop_criteria:
-            return bestBeta
+            break
         
         if condition<bestCondition:
             iterSinceBestCondition=0
@@ -177,14 +181,25 @@ def IRWLS(originaldataset,Bases,C,sigma,Niter=100, stop_criteria=1e-3):
         else:
             iterSinceBestCondition+=1                
             if iterSinceBestCondition>=5:
-                return bestBeta
+                break
         
         tFinIter = time.time()
         
-        print "Iteration",(i+1),": DeltaW/W",condition,", Iteration Time", (tFinIter-tInicioIter)
+        print "Iteration",(i+1),": DeltaW/W",condition,", Iteration Time", (tFinIter-tInicioIter)    
         
-    return bestBeta, NSVs
+    nSVs = dataset.map(lambda x: _isSV(x,Beta,C)).reduce(lambda a,b:a+b)
+    
+    return bestBeta, nSVs
 
+def _isSV(trainingSet,Beta,C):
+    
+    error = trainingSet[0]-trainingSet[1].dot(Beta)[0,0]
+    a=C/(error*trainingSet[0]) 
+    
+    if a>0.0:
+        return 1
+    else:
+        return 0
 
 
 def _getK1andK2(trainingSet,Beta,C,iteration,samplingRate):
@@ -279,13 +294,13 @@ def train_Ballanced_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter=100
 
     Bases = Ballanced_SGMA(XtrRDD,NC,sigma,samplingRate)
     
-    Pesos = IRWLS(XtrRDD,Bases,C,sigma, stop_criteria=stop_criteria)
+    Pesos, NSVs = IRWLS(XtrRDD,Bases,C,sigma, stop_criteria=stop_criteria)
 
     auc_tr, auc_val, auc_tst = compute_AUCs(XtrRDD, XvalRDD, XtstRDD, Bases,Pesos,sigma)
 
     elapsed_time = time.time() - time_ini
     
-    return auc_tr, auc_val, auc_tst, elapsed_time
+    return auc_tr, auc_val, auc_tst, elapsed_time, NSVs
 
 def train_SGMA_IRWLS_ByKey(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter=100, stop_criteria=1e-3):
 
@@ -304,13 +319,13 @@ def train_SGMA_IRWLS_ByKey(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter=100, st
 
     Bases = SGMAByKey(XtrRDD,NC,sigma,samplingRate)
     
-    Pesos = IRWLSByKey(XtrRDD,Bases,C,sigma, stop_criteria=stop_criteria)
+    Pesos, NSVs = IRWLSByKey(XtrRDD,Bases,C,sigma, stop_criteria=stop_criteria)
 
     auc_tr, auc_val, auc_tst = compute_AUCs(XtrRDD, XvalRDD, XtstRDD, Bases,Pesos,sigma)
 
     elapsed_time = time.time() - time_ini
     
-    return auc_tr, auc_val, auc_tst, elapsed_time
+    return auc_tr, auc_val, auc_tst, elapsed_time, NSVs
 
 def train_hybrid_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter=100, stop_criteria=1e-3):
 
@@ -340,12 +355,12 @@ def train_hybrid_SGMA_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter=100, s
 
     Bases = SGMA(XtrRDD,NC,sigma,samplingRate)
     
-    Pesos = hybrid_IRWLS(XtrRDD,Bases,C,sigma, stop_criteria=stop_criteria)
+    Pesos, NSVs = hybrid_IRWLS(XtrRDD,Bases,C,sigma, stop_criteria=stop_criteria)
 
     auc_tr, auc_val, auc_tst = compute_hybrid_AUCs(XtrRDD, XvalRDD, XtstRDD, Bases,Pesos,sigma)
     elapsed_time = time.time() - time_ini
     
-    return auc_tr, auc_val, auc_tst, elapsed_time
+    return auc_tr, auc_val, auc_tst, elapsed_time, NSVs
 
 
 def train_random_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter, stop_criteria=1e-3):
@@ -369,13 +384,13 @@ def train_random_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter, stop_crite
     Bases = [np.array(x.features) for x in base]
 
     
-    Pesos = IRWLS(XtrRDD, Bases, C, sigma, stop_criteria=stop_criteria)
+    Pesos, NSVs = IRWLS(XtrRDD, Bases, C, sigma, stop_criteria=stop_criteria)
 
     auc_tr, auc_val, auc_tst = compute_AUCs(XtrRDD, XvalRDD, XtstRDD, Bases, Pesos, sigma)
 
     elapsed_time = time.time() - time_ini
 
-    return auc_tr, auc_val, auc_tst, elapsed_time
+    return auc_tr, auc_val, auc_tst, elapsed_time, NSVs
 
 
 def train_kmeans_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter, stop_criteria=1e-3):
@@ -401,10 +416,10 @@ def train_kmeans_IRWLS(XtrRDD, XvalRDD, XtstRDD, sigma, C, NC, Niter, stop_crite
     Bases = [np.array(x) for x in base]
 
    
-    Pesos = IRWLS(XtrRDD, Bases, C, sigma, stop_criteria=stop_criteria)
+    Pesos, NSVs = IRWLS(XtrRDD, Bases, C, sigma, stop_criteria=stop_criteria)
 
     auc_tr, auc_val, auc_tst = compute_AUCs(XtrRDD, XvalRDD, XtstRDD, Bases, Pesos, sigma)
 
     elapsed_time = time.time() - time_ini
 
-    return auc_tr, auc_val, auc_tst, elapsed_time
+    return auc_tr, auc_val, auc_tst, elapsed_time, NSVs
