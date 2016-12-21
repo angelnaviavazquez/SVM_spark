@@ -69,5 +69,5 @@ target/
 .DS_Store
 
 # Ignore my local directory with data
-data/
-results/
+#data/
+#results/
