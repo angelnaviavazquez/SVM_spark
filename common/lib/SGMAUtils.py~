@@ -1,0 +1,254 @@
+#!/usr/bin/python
+# Filename: SGMAUtils.py
+
+from scipy.linalg import cho_solve, solve_triangular
+from joblib import Parallel, delayed
+import multiprocessing
+import time
+import sys
+import numpy as np
+from KernelUtils import *
+from math import floor
+
+# It obtains the variable z of the error decrease.
+
+def _get_zeta(KcChol,knc):
+    return cho_solve((KcChol,True),knc.transpose())
+
+
+# It obtains the varaible eta of the error decrease.
+
+def _get_eta(zeta,knc):
+    return 1.00001-((zeta.transpose().dot(knc.transpose()))[0,0])
+
+
+# Partial Error Decrease
+def _errorDecrease_MEMORY(dato,kmn,candidates,sigma,zetalist,samplingRate):
+    dato=np.reshape(dato,(1,-1))
+    if len(zetalist)==0:
+        resultado=(kernelMatrix(dato,candidates,sigma)**2.0).ravel()  
+    else:
+        Kcand=kernelMatrix(dato,candidates,sigma)
+        resultado=np.zeros(len(candidates)) 
+        for i in range(len(candidates)):
+            resultado[i]=((kmn.dot(zetalist[i])-Kcand[0,i])**2.0)        
+    return resultado
+
+
+# Partial Error Decrease
+def _errorDecrease_NOT_MEMORY(dato,Bases,candidates,sigma,zetalist,samplingRate):
+    dato=np.reshape(dato,(1,-1))
+    if len(zetalist)==0:
+        resultado=(kernelMatrix(dato,candidates,sigma)**2.0).ravel()  
+    else:
+        Kdato=kernelMatrix(dato,Bases,sigma)
+        Kcand=kernelMatrix(dato,candidates,sigma)
+        resultado=np.zeros(len(candidates)) 
+        for i in range(len(candidates)):
+            resultado[i]=((Kdato.dot(zetalist[i])-Kcand[0,i])**2.0)        
+    return resultado
+
+
+# Rank 1 update of Cholesky Factorization.
+
+def _rankUpdate(KcChol,knc):
+    nval = solve_triangular(KcChol, knc.transpose(),lower=True)
+    KcChol = np.concatenate((KcChol,np.zeros(knc.transpose().shape)),axis=1)
+    row = np.concatenate((nval.transpose(),np.sqrt(np.array([[1.00001]])-nval.transpose().dot(nval))),axis=1)
+    return np.concatenate((KcChol,row),axis=0)
+
+# SGMA Function
+
+
+def SGMA_MEMORY(originaldataset,numCentros,sigma,samplingRate):
+
+    sys.setrecursionlimit(30000)
+    
+    # Basis list and Cholesky Factorization Initialization
+    
+    Bases=np.array([[]])
+    KcChol = np.array([[]])
+    
+    # Mapping from labeledPoint features to numpy array    
+    dataset=originaldataset.map(lambda x: (np.array(x.features),np.array([]))).cache()    
+    centroidsRate=59.0/dataset.count()
+
+    # Counting the number of cores
+    
+    num_cores = multiprocessing.cpu_count()
+        
+    # Loop that takes a new centroid in every iteration
+
+    for cent in range(numCentros):
+        
+        tInicioIter = time.time()
+        
+        # Choosing Candidates
+        
+        print "Centroid",(cent+1),": Taking candidates,",
+        candidates=dataset.sample(False,centroidsRate).collect()
+    
+        # Obtaining error decrease    
+        print "Evaluating ED,",
+        if cent==0:
+            # First Centroid
+            Descenso =  dataset.map(lambda x:_errorDecrease_MEMORY(x[0],x[1],np.array(candidates),sigma,list(),samplingRate)).reduce(lambda a,b:a+b)
+        else:
+            # Parallel variables
+            knclist = Parallel(n_jobs=num_cores)(delayed(kernelMatrix)(np.reshape(np.array(candidate),(1,-1)),Bases,sigma) for candidate in candidates)
+            zetalist = Parallel(n_jobs=num_cores)(delayed(_get_zeta)(KcChol,knc) for knc in knclist)
+            etalist = Parallel(n_jobs=num_cores)(delayed(_get_eta)(zetalist[i],knclist[i]) for i in range(len(candidates)))
+
+            # Cluster variables
+            Descenso =  dataset.map(lambda x:_errorDecrease_MEMORY(x[0],x[1],np.array(candidates),sigma,zetalist,samplingRate)).reduce(lambda a,b:a+b)
+            for i in range(len(etalist)):
+                Descenso[i]=etalist[i]*Descenso[i]
+            
+            etalist=np.array(etalist)
+            Descenso[etalist<=0.0]=0.0
+        
+        
+        # Updating model
+        maximo = np.argmax(Descenso)
+        print "Max ED:",Descenso[maximo],",",
+        
+        print "Updating Matrices",
+        dataset = dataset.map(lambda x:(x[0],np.concatenate((x[1],np.array([kernel(candidates[maximo],x[0],sigma)]))))).cache()
+
+        if cent==0:
+            KcChol=np.sqrt(np.array([[1.00001]]))
+            Bases=np.reshape(np.array(candidates[maximo]),(1,-1))
+        else:
+            KcChol=_rankUpdate(KcChol,knclist[maximo]) 
+            Bases=np.concatenate((Bases,np.reshape(np.array(candidates[maximo]),(1,-1))),axis=0) 
+     
+        # Print iteration time
+        tFinIter = time.time()
+        print "Time", (tFinIter-tInicioIter)  
+        
+    return Bases        
+
+
+def SGMA_NOT_MEMORY(originaldataset,numCentros,sigma,samplingRate):
+    
+    # Basis list and Cholesky Factorization Initialization
+    
+    Bases=np.array([[]])
+    KcChol = np.array([[]])
+    
+    # Mapping from labeledPoint features to numpy array
+    
+    dataset=originaldataset.map(lambda x: np.array(x.features)).cache()
+    centroidsRate=59.0/dataset.count()
+       
+    # Counting the number of cores
+    
+    num_cores = multiprocessing.cpu_count()
+        
+    # Loop that takes a new centroid in every iteration
+
+    for cent in range(numCentros):
+        
+        tInicioIter = time.time()
+        
+        # Choosing Candidates
+        
+        print "Centroid",(cent+1),": Taking candidates,",
+        candidates=dataset.sample(False,centroidsRate).collect()
+    
+        # Obtaining error decrease
+    
+        print "Evaluating ED,",
+        if cent==0: 
+            # First Centroid
+            Descenso =  dataset.sample(False,samplingRate).map(lambda x:_errorDecrease_NOT_MEMORY(x,Bases,np.array(candidates),sigma,list(),samplingRate)).reduce(lambda a,b:a+b)
+        else:
+            
+            # Parallel variables
+            knclist = Parallel(n_jobs=num_cores)(delayed(kernelMatrix)(np.reshape(np.array(candidate),(1,-1)),Bases,sigma) for candidate in candidates)
+            zetalist = Parallel(n_jobs=num_cores)(delayed(_get_zeta)(KcChol,knc) for knc in knclist)
+            etalist = Parallel(n_jobs=num_cores)(delayed(_get_eta)(zetalist[i],knclist[i]) for i in range(len(candidates)))
+    
+            # Cluster variables
+            Descenso =  dataset.sample(False,samplingRate).map(lambda x:_errorDecrease_NOT_MEMORY(x,Bases,np.array(candidates),sigma,zetalist,samplingRate)).reduce(lambda a,b:a+b)
+            for i in range(len(etalist)):
+                Descenso[i]=etalist[i]*Descenso[i]
+            
+            etalist=np.array(etalist)
+            Descenso[etalist<=0.0]=0.0
+        
+        
+        # Updating model
+        
+        maximo = np.argmax(Descenso)
+        print "Max ED:",Descenso[maximo],",",
+       
+        print "Updating Matrices",
+        if cent==0:
+            KcChol=np.sqrt(np.array([[1.00001]]))
+            Bases=np.reshape(np.array(candidates[maximo]),(1,-1))
+        else:
+            KcChol=_rankUpdate(KcChol,knclist[maximo])  
+            Bases=np.concatenate((Bases,np.reshape(np.array(candidates[maximo]),(1,-1))),axis=0)
+    
+        # Print iteration time
+        tFinIter = time.time()
+        print "Time", (tFinIter-tInicioIter)  
+        
+    return Bases        
+
+
+def AKO(originaldataset,NC,sigma,Samplefraction):
+    
+    time_centroides_ini = time.time()
+    Samplefraction_cands = Samplefraction / 10.0
+
+    aux = time.time()
+    Seed = int((aux -  floor(aux)) *10000)
+    Xtrsampled = originaldataset.sample(withReplacement=True, fraction=Samplefraction, seed=Seed)
+    aux = time.time()
+    Seed = int((aux -  floor(aux)) *10000)
+    Xcands = Xtrsampled.sample(withReplacement=True, fraction=0.1, seed=Seed)
+    cands = Xcands.map(lambda x: np.array(x.features)).collect()
+    cands = np.array(cands)
+    Ncands = cands.shape[0]
+    print "Ncands = " , Ncands
+    print cands.shape
+    RDD_kncands = Xtrsampled.map(lambda x: kernelMatrix(np.reshape(np.array(x.features),(1,-1)),cands,sigma)).cache()
+    suma = RDD_kncands.reduce(lambda x, y: x + y)
+    print "Fin reduce"
+                            
+    #Kc = kernelMatrix(cands,cands,sigma)
+    medida2 = suma / np.max(suma)
+    medida1 = 1 - medida2*0
+    medida1_acum = 1 - medida2*0
+                            
+    c = []
+    cuales_c = []
+    valores = []
+                            
+    NC_ = 0
+    Ntrials = 0
+    while NC_ < NC and Ntrials < Ncands:
+        Ntrials += 1
+        medida1_acum = medida1_acum * medida1
+        criterio = medida1_acum * medida2                                   
+        cual = np.argmax(criterio)
+        #print Ntrials, NC_
+        if cual not in cuales_c:
+            c_ = cands[cual]
+            valores.append(criterio[0][cual])
+            c.append(c_)
+            NC_ = len(c)
+            cuales_c.append(cual)
+
+            aux = kernelMatrix(c_, cands, sigma)[0]
+            medida1 = aux - min(aux)
+            medida1 = medida1 / max(medida1)
+            medida1 = (1.0 - np.array(medida1))
+                            
+    Bases = np.array(c)
+    time_centroides = time.time() - time_centroides_ini
+    return Bases
+
+
