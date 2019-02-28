@@ -4,7 +4,7 @@ This is an example to run the code used in the paper:
 
 "Distributed Non-Linear Semiparametric Support Vector Machine for Big Data Applications on Spark"
 
-Submitted to the journal:
+Accepted for publication at:
 
 "IEEE Transactions on Systems, Man and Cybernetics: Systems"
 
